@@ -112,20 +112,20 @@ one labeled line per field. You type **8–20 alphanumeric, non-repeating**
 characters over each placeholder, press **F2** to save and **F3** to exit, and
 it applies them. System UUID is set to `AUTO`.
 
-### `gen-uuid-pool.sh [COUNT]` — unique random set per boot
+### `gen-uuid-pool.sh [COUNT]` — unique random set per run
 Pre-generates `COUNT` sets (default 50) of random UUID serials into
-`EFI/BOOT/sets/` plus a dispatcher. Each boot consumes the lowest-numbered
-unused set and deletes it, so every machine gets a different, unique set with no
-PC in between. Refill by re-running. A `uuid-manifest.csv` records every set.
+`EFI/BOOT/sets/` plus the `setserials.nsh` dispatcher. Each **run** of
+`setserials.nsh` consumes the lowest-numbered unused set and deletes it, so
+every machine gets a different, unique set with no PC in between. Refill by
+re-running the script. A `uuid-manifest.csv` records every set.
 
 ### `gen-dmi-serials.sh` — one random set
-Generates a single set of random UUID serials and bakes them into `startup.nsh`.
+Generates a single set of random UUID serials into `setserials.nsh`.
 Simplest; re-run for fresh values.
 
-> Note: `gen-uuid-pool.sh` and `gen-dmi-serials.sh` install an **auto-running**
-> `startup.nsh` by design (hands-free). Only `install-serial-entry.sh` is
-> no-auto-run (it uses `setserials.nsh`, launched by name). Ask if you want the
-> other two converted to no-auto-run too.
+> All three scripts are **no-auto-run**: they install `setserials.nsh`, which you
+> launch by name at the shell prompt, and they delete any stray `startup.nsh` so
+> nothing executes on boot. (System UUID is always `/SU AUTO`.)
 
 ## Usage
 

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #
 # gen-dmi-serials.sh
-# Generates random UUIDs and writes a startup.nsh onto the DMI-edit USB stick.
-# On the next boot of that USB, the UEFI shell auto-runs startup.nsh, which calls
-# AMIDEEFIx64.EFI to set:
+# Generates random UUIDs and writes setserials.nsh onto the DMI-edit USB stick.
+# It does NOT auto-run: boot the USB to the Shell> prompt and launch it by name
+# (cd EFI\BOOT then setserials.nsh). It calls AMIDEEFIx64.EFI to set:
 #     System serial    (/SS)  -> random UUID
 #     Baseboard serial (/BS)  -> random UUID
 #     Chassis serial   (/CS)  -> random UUID
-#     System UUID      (/SU)  -> random UUID (generated here with uuidgen)
+#     System UUID      (/SU)  -> AUTO (firmware-generated; a full UUID is
+#                                rejected by some boards)
 #
 # Re-run this script any time you want fresh random serials, then boot the USB.
 
@@ -25,14 +26,17 @@ if [ -z "$USB" ]; then
     exit 1
 fi
 echo "USB found at: $USB"
+BOOT="$USB/EFI/BOOT"
+
+# remove any auto-run file so nothing runs on boot
+rm -f "$USB/startup.nsh" "$BOOT/startup.nsh" 2>/dev/null || true
 
 # --- generate the random values -------------------------------------------
 SS_UUID="$(uuidgen)"
 BS_UUID="$(uuidgen)"
 CS_UUID="$(uuidgen)"
-SU_UUID="$(uuidgen)"
 
-# --- build startup.nsh -----------------------------------------------------
+# --- build setserials.nsh (run by name, not auto-run) ----------------------
 # The loop finds whichever fsN: maps to this USB, then cd's to the tool dir.
 read -r -d '' NSH <<EOF || true
 @echo -off
@@ -49,27 +53,24 @@ echo   Baseboard serial: $BS_UUID
 AMIDEEFIx64.EFI /BS "$BS_UUID"
 echo   Chassis serial  : $CS_UUID
 AMIDEEFIx64.EFI /CS "$CS_UUID"
-echo   System UUID     : $SU_UUID
-AMIDEEFIx64.EFI /SU "$SU_UUID"
+echo   System UUID     : AUTO (firmware-generated)
+AMIDEEFIx64.EFI /SU AUTO
 echo.
 echo Done. Remove the USB and reboot into your OS to verify.
 EOF
 
-# Write to both common startup.nsh locations so any UEFI shell finds it.
-printf '%s\n' "$NSH" > "$USB/startup.nsh"
-printf '%s\n' "$NSH" > "$USB/EFI/BOOT/startup.nsh"
+# CRLF line endings for the UEFI shell
+printf '%s\n' "$NSH" | sed 's/$/\r/' > "$BOOT/setserials.nsh"
 
 # --- report ----------------------------------------------------------------
 echo
-echo "Wrote startup.nsh to:"
-echo "  $USB/startup.nsh"
-echo "  $USB/EFI/BOOT/startup.nsh"
+echo "Wrote (NO auto-run): $BOOT/setserials.nsh"
 echo
-echo "Values that will be written on next USB boot:"
+echo "Values it will write when you run it:"
 echo "  System serial    (/SS): $SS_UUID"
 echo "  Baseboard serial (/BS): $BS_UUID"
 echo "  Chassis serial   (/CS): $CS_UUID"
-echo "  System UUID      (/SU): $SU_UUID"
+echo "  System UUID      (/SU): AUTO (firmware-generated)"
 echo
-echo "Next: safely eject, boot the USB. It auto-runs and applies the values."
+echo "On the target: boot to Shell>, then:  fs0:  /  cd EFI\\BOOT  /  setserials.nsh"
 sync
