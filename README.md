@@ -43,6 +43,56 @@ below.
 A switch with **no value is a read** (it just displays the current value);
 a value after the switch is a **write**.
 
+## Manual usage — check & set by hand
+
+If you'd rather drive the tool yourself instead of using the auto-run scripts,
+boot the USB and work at the UEFI shell prompt.
+
+**1. Get a shell prompt.** As the shell starts it prints something like
+`Press ESC in 5 seconds to skip startup.nsh`. Press **ESC** to skip the auto-run
+and land at a `Shell>` prompt. (If a build has no `startup.nsh`, it drops you
+straight to the prompt.)
+
+**2. Find the USB and go to the tool.**
+```
+map -r                     # list filesystems (note which fsN: is the USB)
+fs0:                       # switch to it (could be fs1:, fs2:, ... — try map output)
+cd EFI\BOOT                # where AMIDEEFIx64.EFI lives
+```
+
+**3. CHECK — read the current values** (no value after a switch = read):
+```
+AMIDEEFIx64.EFI /ALL       # dump all DMI fields the tool knows
+AMIDEEFIx64.EFI /SS        # system serial   (SMBIOS Type 1)
+AMIDEEFIx64.EFI /BS        # baseboard serial (Type 2)
+AMIDEEFIx64.EFI /CS        # chassis serial   (Type 3)
+AMIDEEFIx64.EFI /SU        # system UUID      (Type 1)
+```
+You can also use the shell's own `smbios` command to display raw SMBIOS tables.
+
+**4. SET — write new values** (put the value after the switch):
+```
+AMIDEEFIx64.EFI /SS A1b2C3d4E5f6         # set system serial
+AMIDEEFIx64.EFI /BS K9m8N7p6Q5r4         # set baseboard serial
+AMIDEEFIx64.EFI /CS Z2y3X4w5V6u7         # set chassis serial
+AMIDEEFIx64.EFI /SU AUTO                 # randomize system UUID (see caveats)
+```
+Quotes are optional when the value has no spaces. Use 8–20 alphanumeric chars
+per serial if you want a sane range (not enforced by the tool).
+
+**5. VERIFY.** Re-read with the `/SS /BS /CS /SU` read commands above, or reboot
+into your OS and check:
+```
+sudo dmidecode -t 1 -t 2 -t 3
+# or
+sudo cat /sys/class/dmi/id/product_serial /sys/class/dmi/id/board_serial \
+         /sys/class/dmi/id/chassis_serial /sys/class/dmi/id/product_uuid
+```
+
+> **Secure Boot must be OFF.** AMIDEEFI loads a kernel driver to write SMBIOS and
+> will fail with *"Unable to generate driver automatically when Secure Boot is
+> enabled"* otherwise. Disable Secure Boot in BIOS/UEFI setup first.
+
 ## The three scripts
 
 Each is a Linux helper you run with the USB mounted; it writes the right
@@ -80,6 +130,9 @@ sudo dmidecode -t 1 -t 2 -t 3
 
 ## Caveats (learned the hard way)
 
+- **Secure Boot must be disabled.** AMIDEEFI needs to load a driver to write
+  SMBIOS; with Secure Boot on it errors out ("Unable to generate driver
+  automatically when Secure Boot is enabled").
 - **System UUID must be `AUTO`.** On at least one board (ASRock B850M Pro RS),
   `/SU` with a full 36-char UUID is rejected; `AUTO` lets the firmware generate
   a valid random UUID instead. `dmidecode` may show its first fields
