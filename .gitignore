@@ -1,0 +1,11 @@
+# Proprietary AMI tool — supply your own, do not redistribute
+AMIDEEFIx64.EFI
+AMIDEWIN*.exe
+*.EFI
+*.efi
+
+# Generated output
+uuid-manifest.csv
+work.nsh
+applied.flg
+sets/
