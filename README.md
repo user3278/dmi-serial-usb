@@ -11,18 +11,25 @@ different styles, from fully manual entry to pre-generated random pools.
 
 ## What's on the USB
 
-A FAT-formatted stick with a UEFI shell set up to auto-run `startup.nsh`:
+A FAT-formatted stick with a UEFI shell set up to auto-run `startup.nsh`.
+The full bootable payload is committed under `EFI/BOOT/`:
 
 ```
 EFI/BOOT/
-  BOOTX64.efi        <- UEFI shell (you provide)
-  AMIDEEFIx64.EFI    <- AMI DMI editor (you provide; NOT in this repo)
-  startup.nsh        <- generated: auto-runs on boot
-  template.nsh       <- generated (entry mode): the fields you fill in
+  BOOTX64.efi        <- UEFI shell (x64)
+  BootIa32.efi       <- UEFI shell (ia32)
+  AMIDEEFIx64.EFI    <- AMI DMI editor
+  startup.nsh        <- auto-runs on boot (manual-entry build)
+  template.nsh       <- the fields you fill in
 ```
 
-You must supply `BOOTX64.efi` (a UEFI shell build) and `AMIDEEFIx64.EFI`
-(AMI's DMI editor) yourself — they are not redistributed here.
+To build a stick: copy the `EFI/` tree to the root of a FAT32 USB. To change
+which flow runs, regenerate `startup.nsh`/`template.nsh` with one of the scripts
+below.
+
+> **Binaries:** `BOOTX64.efi`, `BootIa32.efi`, and `AMIDEEFIx64.EFI` are AMI /
+> third-party tools included here for convenience in this **private** repo. They
+> are proprietary — do not make this repo public or redistribute them.
 
 ## AMIDEEFI switches used
 
