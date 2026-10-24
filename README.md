@@ -11,21 +11,22 @@ different styles, from fully manual entry to pre-generated random pools.
 
 ## What's on the USB
 
-A FAT-formatted stick with a UEFI shell set up to auto-run `startup.nsh`.
-The full bootable payload is committed under `EFI/BOOT/`:
+A FAT-formatted stick with a UEFI shell. It does **not** auto-run — you boot to
+the `Shell>` prompt and launch the tool yourself. The full bootable payload is
+committed under `EFI/BOOT/`:
 
 ```
 EFI/BOOT/
   BOOTX64.efi        <- UEFI shell (x64)
   BootIa32.efi       <- UEFI shell (ia32)
   AMIDEEFIx64.EFI    <- AMI DMI editor
-  startup.nsh        <- auto-runs on boot (manual-entry build)
+  setserials.nsh     <- guided editor; run BY NAME (not auto-run)
   template.nsh       <- the fields you fill in
 ```
 
-To build a stick: copy the `EFI/` tree to the root of a FAT32 USB. To change
-which flow runs, regenerate `startup.nsh`/`template.nsh` with one of the scripts
-below.
+To build a stick: copy the `EFI/` tree to the root of a FAT32 USB. There is no
+`startup.nsh`, so the shell drops to a prompt; run `setserials.nsh` for the
+guided editor, or drive AMIDEEFI by hand (below).
 
 > **Binaries:** `BOOTX64.efi`, `BootIa32.efi`, and `AMIDEEFIx64.EFI` are AMI /
 > third-party tools included here for convenience in this **private** repo. They
@@ -48,10 +49,8 @@ a value after the switch is a **write**.
 If you'd rather drive the tool yourself instead of using the auto-run scripts,
 boot the USB and work at the UEFI shell prompt.
 
-**1. Get a shell prompt.** As the shell starts it prints something like
-`Press ESC in 5 seconds to skip startup.nsh`. Press **ESC** to skip the auto-run
-and land at a `Shell>` prompt. (If a build has no `startup.nsh`, it drops you
-straight to the prompt.)
+**1. Get a shell prompt.** There is no `startup.nsh`, so the stick boots
+straight to a `Shell>` prompt — nothing runs on its own.
 
 **2. Find the USB and go to the tool.**
 ```
@@ -80,6 +79,14 @@ AMIDEEFIx64.EFI /SU AUTO                 # randomize system UUID (see caveats)
 Quotes are optional when the value has no spaces. Use 8–20 alphanumeric chars
 per serial if you want a sane range (not enforced by the tool).
 
+**Guided alternative.** Instead of typing the set commands, run the editor tool:
+```
+cd EFI\BOOT
+setserials.nsh
+```
+It opens the shell editor on a template with one line per serial; type your
+values, **F2** to save, **F3** to exit, and it applies them.
+
 **5. VERIFY.** Re-read with the `/SS /BS /CS /SU` read commands above, or reboot
 into your OS and check:
 ```
@@ -99,8 +106,9 @@ Each is a Linux helper you run with the USB mounted; it writes the right
 `.nsh` files onto the stick (CRLF line endings, as the UEFI shell expects).
 
 ### `install-serial-entry.sh` — manual entry (recommended)
-Auto-runs on boot and opens the UEFI shell's full-screen editor on a template
-with one labeled line per field. You type **8–20 alphanumeric, non-repeating**
+Installs `setserials.nsh` (run by name — **no auto-run**). At the shell prompt
+you launch it; it opens the UEFI shell's full-screen editor on a template with
+one labeled line per field. You type **8–20 alphanumeric, non-repeating**
 characters over each placeholder, press **F2** to save and **F3** to exit, and
 it applies them. System UUID is set to `AUTO`.
 
@@ -114,6 +122,11 @@ PC in between. Refill by re-running. A `uuid-manifest.csv` records every set.
 Generates a single set of random UUID serials and bakes them into `startup.nsh`.
 Simplest; re-run for fresh values.
 
+> Note: `gen-uuid-pool.sh` and `gen-dmi-serials.sh` install an **auto-running**
+> `startup.nsh` by design (hands-free). Only `install-serial-entry.sh` is
+> no-auto-run (it uses `setserials.nsh`, launched by name). Ask if you want the
+> other two converted to no-auto-run too.
+
 ## Usage
 
 ```bash
@@ -124,7 +137,10 @@ Simplest; re-run for fresh values.
 # or
 ./gen-dmi-serials.sh               # one random set
 
-# safely eject, boot the stick on the target, let it run, then verify:
+# safely eject and boot the stick on the target:
+#   - manual build: at the Shell> prompt run  cd EFI\BOOT  then  setserials.nsh
+#   - pool/single builds: they auto-run on boot
+# then verify:
 sudo dmidecode -t 1 -t 2 -t 3
 ```
 

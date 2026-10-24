@@ -2,22 +2,23 @@
 #
 # install-serial-entry.sh
 #
-# Installs a self-starting, GUIDED serial-entry tool onto the DMI-edit USB.
+# Installs a GUIDED serial-entry tool onto the DMI-edit USB. It does NOT auto-run;
+# you boot to the UEFI shell prompt and launch it by name:  setserials.nsh
 #
 # WHY it works this way: the UEFI shell has no command to prompt for and capture
 # typed input, and AMIDEEFI has no interactive write mode. The only way to let a
 # human type values at the target machine is the shell's built-in full-screen
-# editor ("edit"). So on boot the USB auto-runs startup.nsh, which opens a fresh
-# template in the editor with one labeled line per field; you type your 20
-# characters over each placeholder, Save (F2) and Exit (F3), and it applies them.
+# editor ("edit"). setserials.nsh opens a fresh template in the editor with one
+# labeled line per field; you type over each placeholder, Save (F2), Exit (F3),
+# and it applies them.
 #
-# Fields prompted (replace the underscores with 8 to 20 alphanumeric,
-# NON-REPEATING characters A-Z a-z 0-9; the 20 underscores mark the max):
+# Fields (replace the underscores with 8 to 20 alphanumeric, NON-REPEATING
+# characters A-Z a-z 0-9; the 20 underscores mark the max):
 #     System serial    (/SS)
 #     Baseboard serial (/BS)
 #     Chassis serial   (/CS)
-# System UUID (/SU) is set to AUTO automatically (firmware-generated); a full
-# UUID is rejected by this board, so AUTO is used. Edit that line if you want.
+# System UUID (/SU) is set to AUTO (firmware-generated); a full UUID is rejected
+# by this board, so AUTO is used. Edit that line if you want.
 
 set -euo pipefail
 
@@ -32,10 +33,11 @@ BOOT="$USB/EFI/BOOT"
 
 crlf() { sed 's/$/\r/' > "$1"; }   # UEFI shell wants CRLF line endings
 
-# clean up any leftovers from the old pre-generated-pool approach
-rm -rf "$BOOT/sets" "$USB/startup.nsh" "$USB/uuid-manifest.csv" "$BOOT/applied.flg" "$BOOT/work.nsh" 2>/dev/null || true
+# remove ANY auto-run file + leftovers so nothing runs on boot
+rm -f  "$BOOT/startup.nsh" "$USB/startup.nsh" 2>/dev/null || true
+rm -rf "$BOOT/sets" "$USB/uuid-manifest.csv" "$BOOT/applied.flg" "$BOOT/work.nsh" 2>/dev/null || true
 
-# --- the fill-in template (pristine; copied to work.nsh fresh each boot) ---
+# --- the fill-in template (pristine; copied to work.nsh fresh each run) ----
 crlf "$BOOT/template.nsh" <<'EOF'
 echo Setting SYSTEM serial...
 AMIDEEFIx64.EFI /SS ____________________
@@ -47,8 +49,8 @@ echo Setting SYSTEM UUID (AUTO = firmware-generated)...
 AMIDEEFIx64.EFI /SU AUTO
 EOF
 
-# --- the self-starting dispatcher -----------------------------------------
-crlf "$BOOT/startup.nsh" <<'EOF'
+# --- the guided tool (run by name: setserials.nsh) -------------------------
+crlf "$BOOT/setserials.nsh" <<'EOF'
 @echo -off
 echo ================================================================
 echo   DMI SERIAL ENTRY
@@ -60,7 +62,7 @@ for %i in 0 1 2 3 4 5 6 7 8 9
   endif
 endfor
 cd \EFI\BOOT
-rem start from a fresh copy so placeholders are blank every boot
+rem start from a fresh copy so placeholders are blank every run
 if exist work.nsh then
   del work.nsh
 endif
@@ -86,15 +88,17 @@ echo  Done. Remove the USB and reboot into your OS to verify.
 EOF
 
 # --- keep inspectable copies in Downloads ---------------------------------
-cp "$BOOT/startup.nsh" "/home/$USER/Downloads/startup.nsh" 2>/dev/null || true
-cp "$BOOT/template.nsh" "/home/$USER/Downloads/template.nsh" 2>/dev/null || true
+cp "$BOOT/setserials.nsh" "/home/$USER/Downloads/setserials.nsh" 2>/dev/null || true
+cp "$BOOT/template.nsh"   "/home/$USER/Downloads/template.nsh"   2>/dev/null || true
 sync
 
 echo
-echo "Installed:"
-echo "  $BOOT/startup.nsh   (auto-runs on boot, opens the editor)"
-echo "  $BOOT/template.nsh   (the 3 fields you fill in)"
-echo "Copies for inspection are in ~/Downloads/startup.nsh and template.nsh"
+echo "Installed (NO auto-run):"
+echo "  $BOOT/setserials.nsh   (run it yourself at the shell prompt)"
+echo "  $BOOT/template.nsh      (the 3 fields you fill in)"
+echo "Copies for inspection are in ~/Downloads/setserials.nsh and template.nsh"
 echo
-echo "Boot the USB: it opens the editor, you type each field's 20 chars,"
-echo "F2 to save, F3 to exit, and it applies them."
+echo "On the target: boot the USB to the Shell> prompt, then:"
+echo "    fs0:              (or whichever map -r shows)"
+echo "    cd EFI\\BOOT"
+echo "    setserials.nsh"
